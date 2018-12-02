@@ -11,7 +11,7 @@ my $input_file = $ARGV[0] || 'input01.txt';
 
 my $frequency = 0;
 
-for (path( $input_file )->lines_utf8) {
+for (path( $input_file )->lines_utf8( { chomp => 1 } )) {
   $frequency += $_;
  }
 

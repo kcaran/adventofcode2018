@@ -13,7 +13,7 @@ my $frequency = 0;
 my %freq_record = ();
 my $dup_freq;
 
-my @freq_changes = path( $input_file )->lines_utf8;
+my @freq_changes = path( $input_file )->lines_utf8( { chomp => 1 } );
 
 while (!defined $dup_freq) {
   for my $change (@freq_changes) {
