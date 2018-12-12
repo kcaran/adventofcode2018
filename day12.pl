@@ -37,7 +37,15 @@ use Path::Tiny;
     $self->{ left } += length( $1 );
     $next_pots =~ s/\.$//;
 
+    # If the pots are the same, get the offset for each additional
+    if ($self->{ pots } eq $next_pots) {
+      $self->{ add_count } = $self->sum_pots() - $self->{ sum_pots };
+      return 1;
+     }
+
+    $self->{ num_gens }++;
     $self->{ pots } = $next_pots;
+    $self->{ sum_pots } = $self->sum_pots();
 
     return;
    }
@@ -48,6 +56,9 @@ use Path::Tiny;
      pots => '',
      spread => {},
      left => 0,
+     num_gens => 0,
+     sum_pots => 0,
+     add_count => 0,
     };
 
     for my $input ( Path::Tiny::path( $input_file )->lines_utf8( { chomp => 1 } )) {
@@ -72,9 +83,20 @@ my $input_file = $ARGV[0] || 'input12.txt';
 
 my $pots = Pots->new( $input_file );
 
+if (0) {
 for (my $i = 0; $i < 20; $i++) {
    $pots->next_gen();
  }
-
 print "The sum of pots with plants is ", $pots->sum_pots(), "\n";
+exit;
+}
+
+while (!$pots->next_gen()) {
+  print "$pots->{ num_gens }: The sum of pots with plants is ", $pots->sum_pots(), "\n";
+ }
+
+my $num_gens = 50000000000;
+
+my $sum = $pots->{ sum_pots } + ($num_gens - $pots->{ num_gens }) * $pots->{ add_count };
+print "The sum of pots with plants is $sum\n";
 
