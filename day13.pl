@@ -18,8 +18,13 @@ use Path::Tiny;
     my ($self, $cart) = @_;
 
     for my $other (@{ $self->{ carts } }) {
+      next if ($other->{ crashed });
       next if ($other == $cart);
       if ($other->{ x } == $cart->{ x } && $other->{ y } == $cart->{ y }) {
+        $other->{ crashed } = 1;
+        $self->{ num_crashed }++;
+        $cart->{ crashed } = 1;
+        $self->{ num_crashed }++;
         return "$cart->{ x },$cart->{ y }";
        }
      }
@@ -77,9 +82,20 @@ use Path::Tiny;
     my ($self) = @_;
 
     for my $cart (sort { $a->{ x } <=> $b->{ x } || $a->{ y } <=> $b->{ y } } @{ $self->{ carts } } ) {
+      next if ($cart->{ crashed });
       $self->move_cart( $cart );
       my $collision = $self->check_collisions( $cart );
-      return $collision if ($collision);
+      if ($collision) {
+        print "Collision at ($collision)\n";
+       }
+     }
+
+    if ($self->{ num_crashed } >= @{ $self->{ carts } } - 1) {
+      # Even number of carts - none would be left
+      exit unless (@{ $self->{ carts } } % 2);
+      for my $cart (@{ $self->{ carts } }) {
+        return "The last cart is at ($cart->{ x },$cart->{ y })" if (!$cart->{ crashed });
+       }
      }
 
     return;
@@ -90,6 +106,7 @@ use Path::Tiny;
     my $self = {
      map => [],
      carts => [],
+     num_crashed => 0,
     };
 
     my $y = 0;
@@ -119,6 +136,7 @@ use Path::Tiny;
      y => $y,
      dir => $dir,
      inter => 0,
+     crashed => 0,
     };
 
     bless $self, $class;
@@ -130,9 +148,9 @@ my $input_file = $ARGV[0] || 'input13.txt';
 
 my $grid = Grid->new( $input_file );
 
-my $collision;
-while (!($collision = $grid->tick())) {
+my $last_cart;
+while (!($last_cart = $grid->tick())) {
  }
 
-print "The first collision is at $collision\n";
+print "$last_cart\n";
 exit;
