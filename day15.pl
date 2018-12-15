@@ -8,6 +8,59 @@ use Path::Tiny;
 { package Map;
 
   my @moves = ( [ -1, 0 ], [ 0, -1 ], [ 0, 1 ], [ 1, 0 ] );
+
+  sub end_battle {
+    my ($self, $type) = @_;
+
+    my $unit_type = $type eq 'E' ? $self->{ elves } : $self->{ goblins };
+
+    $self->print_map();
+
+    my $score = 0;
+    for my $unit (@{ $unit_type }) {
+print "($unit->{ y }, $unit->{ x }) = $unit->{ hp }\n";
+      $score += $unit->{ hp };
+     }
+
+    die "The score is $score * $self->{ num_rounds } = ", $score * $self->{ num_rounds }, "\n";
+   }
+
+  sub find_target {
+    my ($self, $type, $y, $x) = @_;
+
+    my $enemies = $type eq 'E' ? $self->{ elves } : $self->{ goblins };
+
+    return grep { $_->{ y } == $y && $_->{ x } == $x } @{ $enemies };
+   }
+
+  sub kill_unit {
+    my ($self, $unit) = @_;
+
+    $self->{ map }[ $unit->{ y } ][ $unit->{ x } ] = '.';
+   }
+
+  sub unit_attack {
+    my ($self, $unit) = @_;
+
+    my $map = $self->{ map };
+    my $enemy = $unit->{ type } eq 'E' ? 'G' : 'E';
+
+    my @target_pos = map {
+      my $y = $unit->{ y } + $_->[0];
+      my $x = $unit->{ x } + $_->[1];
+      $map->[$y][$x] eq $enemy ? [ $y, $x ] : ();
+      } @moves;
+
+    return unless (@target_pos);
+
+    my @targets = sort { $a->{ hp } <=> $b->{ hp } } map { $self->find_target( $enemy, $_->[0], $_->[1] ) } @target_pos;
+    $targets[0]->{ hp } -= $unit->{ attack };
+print "($targets[0]->{ y }, $targets[0]->{ x }) : $targets[0]->{ hp }\n";
+    if ($targets[0]->{ hp } <= 0) {
+      $self->kill_unit( $targets[0] );
+     }
+   }
+
   sub move_unit {
     my ($self, $unit) = @_;
 
@@ -56,8 +109,18 @@ use Path::Tiny;
     my ($self) = @_;
 
     for my $unit (sort { $a->{ y } <=> $b->{ y } || $a->{ x } <=> $b->{ x } } (@{ $self->{ elves } }, @{ $self->{ goblins } })) {
+      next unless ($unit->{ hp } > 0);
       $self->move_unit( $unit );
+      $self->unit_attack( $unit );
      }
+
+    # Remove dead units
+    $self->{ elves } = [ grep { $_->{ hp } > 0 } @{ $self->{ elves } } ];
+    $self->end_battle( 'G' ) unless (@{ $self->{ elves } });
+    $self->{ goblins } = [ grep { $_->{ hp } > 0 } @{ $self->{ goblins } } ];
+    $self->end_battle( 'E' ) unless (@{ $self->{ goblins } });
+
+    $self->{ num_rounds }++;
 
     return;
    }
@@ -68,6 +131,7 @@ use Path::Tiny;
      map => [],
      elves => [],
      goblins => [],
+     num_rounds => 0,
     };
 
     my $y = 0;
@@ -111,8 +175,8 @@ use Path::Tiny;
 my $input_file = $ARGV[0] || 'input15.txt';
 
 my $map = Map->new( $input_file );
-for (my $i = 0; $i < 3; $i++) {
-  print "Round $i\n";
+while (1) {
+  print "Round $map->{ num_rounds }\n";
   $map->round();
   $map->print_map();
  }
