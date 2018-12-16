@@ -61,37 +61,76 @@ print "($targets[0]->{ y }, $targets[0]->{ x }) : $targets[0]->{ hp }\n";
      }
    }
 
+  #
+  # My first attempt suffered from the bug explained in:
+  # https://www.reddit.com/r/adventofcode/comments/a6chwa/2018_day_15_solutions/ebu7u0z
+  # and tested using test15z.txt
+  #
   sub move_unit {
     my ($self, $unit) = @_;
 
     my $enemy = $unit->{ type } eq 'E' ? 'G' : 'E';
     my $map = $self->{ map };
+
+    # First, we need to find the closest enemy
     my $possible = [ [ $unit->{ y }, $unit->{ x }, '' ] ];
     my %tested = ( "$unit->{ y },$unit->{ x }" => 1 );
-    for my $p (@{ $possible }) {
-      # Check if there is a target in range
-      if (grep { $map->[$p->[0] + $_->[0]][$p->[1] + $_->[1]] eq $enemy } @moves) {
-       # Done
-       if ($p->[2]) {
-         $map->[ $unit->{ y } ][ $unit->{ x } ] = '.';
-         $unit->{ y } = $p->[2][0];
-         $unit->{ x } = $p->[2][1];
-         $map->[ $unit->{ y } ][ $unit->{ x } ] = $unit->{ type };
-        }
-       return;
-      }
+    my @closest_enemies = ();
+    while (!@closest_enemies && @{ $possible }) {
+      my $next = [];
+      for my $p (@{ $possible }) {
+        # Check if there is a target in range
+        for my $m (@moves) {
+          if ($map->[$p->[0] + $m->[0]][$p->[1] + $m->[1]] eq $enemy) {
+            push @closest_enemies, [$p->[0] + $m->[0], $p->[1] + $m->[1]];
+           }
+         }
 
+        # Move
+        for my $m (@moves) {
+          my $y = $p->[0] + $m->[0];
+          my $x = $p->[1] + $m->[1];
+          next if $tested{ "$y,$x" };
+          next if $map->[$y][$x] ne '.';
+          $tested{ "$y,$x" } = 1;
+          my $first = $p->[2] || [ $y, $x ];
+          push @{ $next }, [ $y, $x, $first ];
+         }
+       }
+
+      $possible = $next;
+     }
+
+    # Now, find the best way to move to that enemy
+    return unless (@closest_enemies);
+    @closest_enemies = sort { $a->[0] <=> $b->[0] || $a->[1] <=> $b->[1] } @closest_enemies;
+    my $closest = $closest_enemies[0];
+    $possible = [ [ $unit->{ y }, $unit->{ x }, '' ] ];
+    %tested = ( "$unit->{ y },$unit->{ x }" => 1 );
+    for my $p (@{ $possible }) {
+      # Check if the target is in range
+      if (grep { $p->[0] + $_->[0] == $closest->[0] && $p->[1] + $_->[1] == $closest->[1] } @moves) {
+        # Done
+        if ($p->[2]) {
+          $map->[ $unit->{ y } ][ $unit->{ x } ] = '.';
+          $unit->{ y } = $p->[2][0];
+          $unit->{ x } = $p->[2][1];
+          $map->[ $unit->{ y } ][ $unit->{ x } ] = $unit->{ type };
+         }
+        return;
+       }
+      
       # Move
       for my $m (@moves) {
         my $y = $p->[0] + $m->[0];
         my $x = $p->[1] + $m->[1];
-        next if $tested{ "$y,$x" };
-        next if $map->[$y][$x] ne '.';
-        $tested{ "$y,$x" } = 1;
-        my $first = $p->[2] || [ $y, $x ];
-        push @{ $possible }, [ $y, $x, $first ];
-       }
-     }
+         next if $tested{ "$y,$x" };
+         next if $map->[$y][$x] ne '.';
+         $tested{ "$y,$x" } = 1;
+         my $first = $p->[2] || [ $y, $x ];
+         push @{ $possible }, [ $y, $x, $first ];
+        }
+      }
 
     return;
    }
