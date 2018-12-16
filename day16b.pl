@@ -97,7 +97,10 @@ use Path::Tiny;
       before => [ split( /,\s*/, $before ) ],
       code => [ split( /\s+/, $code ) ],
       after => [ split( /,\s*/, $after ) ],
+      inst => [],
     };
+
+    my @opcodes = keys %{ $test_opcodes };
 
     bless $self, $class;
     return $self;
