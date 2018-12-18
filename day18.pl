@@ -93,7 +93,36 @@ use Path::Tiny;
        }
      }
 
-    return $trees * $yards;
+    my $resources = $trees * $yards;
+
+    for (my $i = @{ $self->{ resources } } - 1; $i >= 0; $i--) {
+      if ($resources == $self->{ resources }[$i]) {
+        # Check if this is really a cycle
+        my $cycle_cnt = @{ $self->{ resources } } - $i;
+        my $cycle = 1;
+        for (my $j = 1; $j < $cycle_cnt; $j++) {
+          $cycle &&= ($self->{ resources }[-$j] == $self->{ resources }[-($j+$cycle_cnt)]);
+         }
+        if ($cycle) {
+          $self->{ cycle } = $i; 
+          last;
+         }
+       }
+     }
+
+    push @{ $self->{ resources } }, $resources unless ($self->{ cycle });
+
+    return $resources;
+   }
+
+  sub compute_resources {
+    my ($self, $count) = @_;
+
+    my $width = @{ $self->{ resources } } - $self->{ cycle };
+
+    my $idx = ($count - $self->{ cycle } - 1) % $width;
+
+    return $self->{ resources }[ $self->{ cycle } + $idx ];
    }
 
   sub new {
@@ -101,6 +130,8 @@ use Path::Tiny;
     my $self = {
      map => [],
      size => 0,
+     cycle => 0,
+     resources => [],
     };
 
     my $y = 0;
@@ -126,11 +157,14 @@ my $map = Map->new( $input_file );
 
 $map->print_map();
 
-for (my $i = 0; $i < 10; $i++) {
+my $i = 0;
+while ($i < 2000 && !$map->{ cycle }) {
   $map->tick();
-  $map->print_map();
+$i++;
+  my $resources = $map->total_resources();
+print "$i: $resources\n";
  }
 
-print "The total resource value is ", $map->total_resources(), "\n";
+print "The total resource value is ", $map->compute_resources( 1000000000 ), "\n";
 
 exit;
