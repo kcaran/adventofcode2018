@@ -15,6 +15,12 @@ use Path::Tiny;
 
 { package Map;
 
+  sub water_tiles {
+    my ($self) = @_;
+
+    return scalar grep { my ($y, $x) = split( ',', $_ ); my $tile = $self->{ map }[$y][$x] || ''; $tile eq '~' ? (1) : () } keys %{ $self->{ tiles } };
+   }
+
   sub print_map {
     my ($self, $depth) = @_;
 
@@ -180,6 +186,8 @@ do {
 } while ($tiles < scalar keys %{ $map->{ tiles } });
 
 $map->print_map();
-print "There are $tiles tiles that can be reached by water\n";
+print "There are $tiles tiles that can be reached by water\n\n";
+
+print "There are ", $map->water_tiles(), " tiles at the end\n";
 
 exit;
