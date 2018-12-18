@@ -16,17 +16,24 @@ use Path::Tiny;
 { package Map;
 
   sub print_map {
-    my ($self, $reached) = @_;
+    my ($self, $depth) = @_;
 
-    for (my $y = 0; $y <= $self->{ max_y }; $y++) {
-      for (my $x = $self->{ min_x }; $x <= $self->{ max_x }; $x++) {
+    my ($min_x, $max_x, $max_y) = (10000, 0, 0);
+    for my $pos (keys %{ $self->{ tiles } }) {
+      my ($y, $x) = split( ',', $pos );
+      $min_x = $x - 1 if ($x <= $min_x);
+      $max_x = $x + 1 if ($x >= $max_x);
+      $max_y = $y + 1 if ($y >= $max_y);
+     }
+    for (my $y = (!$depth || $max_y < $depth) ? 0 : $max_y - $depth; $y <= $max_y; $y++) {
+      for (my $x = $min_x; $x <= $max_x; $x++) {
         my $tile = $self->{ map }[$y][$x] || ($self->{ tiles }{ "$y,$x" } ? '|' : '.');
         print $tile;
        }
       print "\n";
      }
 
-    print "\n";
+    print "bottom is $max_y\n\n";
 
     return;
    }
@@ -63,6 +70,7 @@ use Path::Tiny;
      }
     if ($self->open( $y + 1, $left )) {
       $self->{ tiles }{ "$y,$left" } = 1;
+#     print "overflow left at: ($y,$left)\n";
       push @{ $overflow }, [ $y, $left ] 
      }
 
@@ -73,6 +81,7 @@ use Path::Tiny;
      }
     if ($self->open( $y + 1, $right )) {
       $self->{ tiles }{ "$y,$right" } = 1;
+#     print "overflow right at: ($y,$right)\n";
       push @{ $overflow }, [ $y, $right ] 
      }
 
@@ -92,13 +101,15 @@ use Path::Tiny;
 
     my $possible = [ [ 0, 500 ] ];
 
-    for my $p (@{ $possible }) {
+    while (my $p = shift @{ $possible }) {
+#   for my $p (@{ $possible }) {
 #print "$p->[0]\n";
-      return if ($p->[0] >= $self->{ max_y });
+      next if ($p->[0] >= $self->{ max_y });
 
       while ($self->open( $p->[0] + 1, $p->[1] ) && $p->[0] < $self->{ max_y }) {
         $p->[0]++;
-        $self->{ tiles }{ $p->[0] . ",$p->[1]" } = 1;
+        # Don't count tiles above the minimum y!
+        $self->{ tiles }{ $p->[0] . ",$p->[1]" } = 1 if ($p->[0] >= $self->{ min_y });
        }
 
       if (my $bounds = $self->bounds( $p->[0], $p->[1] )) {
@@ -108,8 +119,13 @@ use Path::Tiny;
          }
        }
       else {
-        push @{ $possible }, @{ $self->overflow( $p->[0], $p->[1] ) };
+        # Don't count overflows more than once
+        for my $a (@{ $self->overflow( $p->[0], $p->[1] ) }) {
+          push @{ $possible }, $a unless (grep { $_->[0] == $a->[0] && $_->[1] == $a->[1] } @{ $possible });
+         }
        }
+
+      next;
      }
    }
 
@@ -119,6 +135,7 @@ use Path::Tiny;
      map => [],
      min_x => 10000,
      max_x => 0,
+     min_y => 10000,
      max_y => 0,
      tiles => {},
     };
@@ -133,9 +150,11 @@ use Path::Tiny;
         for (my $y = $r2min; $y <= $r2max; $y++) {
           $self->{ map }[$y][$r1] = '#';
          }
+        $self->{ min_y } = $r2min  unless ($self->{ min_y } <= $r2min);
         $self->{ max_y } = $r2max  unless ($self->{ max_y } >= $r2max);
        }
       else {
+        $self->{ min_y } = $r1  unless ($self->{ min_y } <= $r1);
         $self->{ max_y } = $r1 unless ($self->{ max_y } >= $r1);
         for (my $x = $r2min; $x <= $r2max; $x++) {
           $self->{ map }[$r1][$x] = '#';
@@ -157,9 +176,10 @@ my $tiles;
 do {
   $tiles = scalar keys %{ $map->{ tiles } };
   $map->water();
-# $map->print_map();
+# $map->print_map( 80 );
 } while ($tiles < scalar keys %{ $map->{ tiles } });
 
+$map->print_map();
 print "There are $tiles tiles that can be reached by water\n";
 
 exit;
