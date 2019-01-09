@@ -24,6 +24,7 @@ use Path::Tiny;
       $curr->{ pos }++;
       my $pos = $curr->{ pos };
     
+print "$char at $pos | $curr->{ count } | $curr->{ str }\n";
       if ($char eq '(') {
         push @{ $curr->{ children } }, Path->new( $curr );
         $curr = $curr->{ children }[0];
@@ -35,9 +36,8 @@ use Path::Tiny;
         $curr->{ pos } = $pos;
        }
       elsif ($char eq ')') {
-        $curr = $curr->{ parent };
-        $curr->{ pos } = $pos;
         for my $child (@{ $curr->{ children } }) {
+          $child->{ pos } = $pos;
           $self->traverse( $child );
          }
        }
