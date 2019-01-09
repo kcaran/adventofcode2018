@@ -88,6 +88,7 @@ use Path::Tiny;
 
     my $reg = $self->{ regs };
     while ((my $line = $reg->[ $self->{ inst } ]) < @{ $self->{ code } }) {
+      print "$self->{ code }[$line]\n";
       $self->execute( $self->{ code }[$line] );
       $self->{ regs }[$self->{ inst }]++;
      }
@@ -99,7 +100,7 @@ use Path::Tiny;
     my ($class, $input_file) = @_;
     my $self = {
       code => [],
-      regs => [ 0, 0, 0, 0, 0, 0 ],
+      regs => [ 100000000, 0, 0, 0, 0, 0 ],
       inst => 0,
     };
 
@@ -114,7 +115,7 @@ use Path::Tiny;
    }
 }
 
-my $input_file = $ARGV[0] || 'input19.txt';
+my $input_file = $ARGV[0] || 'input21.txt';
 
 my $program = Program->new( $input_file );
 
