@@ -11,37 +11,54 @@ use Path::Tiny;
 
   my %dirs = ( 'N' => [ -1, 0 ], 'E' => [ 0, 1 ], 'S' => [ 1, 0 ], 'W' => [ 0, -1 ] );
 
+  sub next_door {
+    my ($self, $curr, $char) = @_;
+   }
+
   sub traverse {
     my ($self, $curr) = @_;
 
-    return unless @{ $self->{ path } };
+    while ($curr->{ pos } < @{ $self->{ path } }) {
 
-    my $char = shift @{ $self->{ path } };
+      my $char = $self->{ path }->[ $curr->{ pos } ];
+      $curr->{ pos }++;
+      my $pos = $curr->{ pos };
     
-    if ($char eq '(') {
-      push @{ $curr->{ children } }, Path->new( $curr );
-      $curr = $curr->{ children }[0];
-     }
-    elsif ($char eq '|') {
-      $curr = $curr->{ parent };
-      push @{ $curr->{ children } }, Path->new( $curr );
-      $curr = $curr->{ children }[-1];
-     }
-    elsif ($char eq ')') {
-      $curr = $curr->{ parent };
-     }
-    else {
-      $curr->{ str } .= $char;
-      $self->{ map }{ "$curr->{ y },$curr->{ x }" }{ dirs } .= $char;
-      $curr->{ count }++;
-      $curr->{ y } += $dirs{ $char }->[0];
-      $curr->{ x } += $dirs{ $char }->[1];
-      if (!$self->{ map }{ "$curr->{ y },$curr->{ x }" }) {
-        $self->{ map }{ "$curr->{ y },$curr->{ x }" } = { dirs => '', count => $curr->{ count } };
+      if ($char eq '(') {
+        push @{ $curr->{ children } }, Path->new( $curr );
+        $curr = $curr->{ children }[0];
+       }
+      elsif ($char eq '|') {
+        $curr = $curr->{ parent };
+        push @{ $curr->{ children } }, Path->new( $curr );
+        $curr = $curr->{ children }[-1];
+        $curr->{ pos } = $pos;
+       }
+      elsif ($char eq ')') {
+        $curr = $curr->{ parent };
+        $curr->{ pos } = $pos;
+        for my $child (@{ $curr->{ children } }) {
+          $self->traverse( $child );
+         }
+       }
+      else {
+        $curr->{ str } .= $char;
+        $self->{ map }{ "$curr->{ y },$curr->{ x }" }{ dirs } .= $char;
+        $curr->{ count }++;
+        $curr->{ y } += $dirs{ $char }->[0];
+        $curr->{ x } += $dirs{ $char }->[1];
+        if (!$self->{ map }{ "$curr->{ y },$curr->{ x }" }) {
+          $self->{ map }{ "$curr->{ y },$curr->{ x }" } = { dirs => '', count => $curr->{ count } };
+         }
+        else {
+          if ($self->{ map }{ "$curr->{ y },$curr->{ x }" }{ count } > $curr->{ count }) {
+            $self->{ map }{ "$curr->{ y },$curr->{ x }" }{ count } = $curr->{ count };
+           }
+         }
        }
      }
 
-    return $self->traverse( $curr );
+    return;
    }
 
   sub new {
@@ -80,12 +97,14 @@ use Path::Tiny;
       y => 0,
       x => 0,
       count => 0,
+      pos => 0,
      };
 
     if ($parent) {
       $self->{ y } = $parent->{ y };
       $self->{ x } = $parent->{ x };
       $self->{ count } = $parent->{ count };
+      $self->{ pos } = $parent->{ pos };
      }
 
     bless $self, $class;
