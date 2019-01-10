@@ -13,6 +13,22 @@ use Path::Tiny;
 
   sub next_door {
     my ($self, $curr, $char) = @_;
+
+    $curr->{ str } .= $char;
+    $self->{ map }{ "$curr->{ y },$curr->{ x }" }{ dirs } .= $char;
+    $curr->{ count }++;
+    $curr->{ y } += $dirs{ $char }->[0];
+    $curr->{ x } += $dirs{ $char }->[1];
+    if (!$self->{ map }{ "$curr->{ y },$curr->{ x }" }) {
+      $self->{ map }{ "$curr->{ y },$curr->{ x }" } = { dirs => '', count => $curr->{ count } };
+     }
+    else {
+      if ($self->{ map }{ "$curr->{ y },$curr->{ x }" }{ count } > $curr->{ count }) {
+        $self->{ map }{ "$curr->{ y },$curr->{ x }" }{ count } = $curr->{ count };
+       }
+     }
+
+    return;
    }
 
   sub traverse {
@@ -36,24 +52,19 @@ print "$char at $pos | $curr->{ count } | $curr->{ str }\n";
         $curr->{ pos } = $pos;
        }
       elsif ($char eq ')') {
-        for my $child (@{ $curr->{ children } }) {
-          $child->{ pos } = $pos;
-          $self->traverse( $child );
-         }
+        $curr = $curr->{ parent };
+        $curr->{ pos } = $pos;
        }
       else {
-        $curr->{ str } .= $char;
-        $self->{ map }{ "$curr->{ y },$curr->{ x }" }{ dirs } .= $char;
-        $curr->{ count }++;
-        $curr->{ y } += $dirs{ $char }->[0];
-        $curr->{ x } += $dirs{ $char }->[1];
-        if (!$self->{ map }{ "$curr->{ y },$curr->{ x }" }) {
-          $self->{ map }{ "$curr->{ y },$curr->{ x }" } = { dirs => '', count => $curr->{ count } };
+        if (@{ $curr->{ children } }) {
+          for my $child (@{ $curr->{ children } }) {
+            $child->{ pos } = $pos;
+            $self->next_door( $child, $char );
+           }
          }
         else {
-          if ($self->{ map }{ "$curr->{ y },$curr->{ x }" }{ count } > $curr->{ count }) {
-            $self->{ map }{ "$curr->{ y },$curr->{ x }" }{ count } = $curr->{ count };
-           }
+          print "...At root ($pos)\n";
+          $self->next_door( $curr, $char );
          }
        }
      }
@@ -105,6 +116,7 @@ print "$char at $pos | $curr->{ count } | $curr->{ str }\n";
       $self->{ x } = $parent->{ x };
       $self->{ count } = $parent->{ count };
       $self->{ pos } = $parent->{ pos };
+      $self->{ str } = $parent->{ str };
      }
 
     bless $self, $class;
