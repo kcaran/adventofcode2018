@@ -2,6 +2,9 @@
 #
 # First guess: 3362, which was too low
 # Now I have 1323
+# 
+# I had to rely on this hint:
+# https://www.reddit.com/r/adventofcode/comments/a8a704/solution_for_day_20_part_1/ecv67tz
 #
 use strict;
 use warnings;
@@ -26,7 +29,7 @@ use Path::Tiny;
     $curr->{ str } .= $char;
     $self->{ map }{ "$curr->{ y },$curr->{ x }" }{ dirs } .= $char;
     $curr->{ count }++;
- print "$char at $pos | $curr->{ count } | $curr->{ str }\n";
+ print "$char at $pos | $curr->{ count }\n";
     $curr->{ y } += $dirs{ $char }->[0];
     $curr->{ x } += $dirs{ $char }->[1];
     if (!$self->{ map }{ "$curr->{ y },$curr->{ x }" }) {

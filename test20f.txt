@@ -1,1 +1,1 @@
-^N((NE|)EN|E)$
+^N((NE|)EN|E)ES$
