@@ -1,6 +1,7 @@
 #!/usr/bin/perl
 #
 # First guess: 3362, which was too low
+# Now I have 1323
 #
 use strict;
 use warnings;
@@ -12,19 +13,35 @@ use Path::Tiny;
   my %dirs = ( 'N' => [ -1, 0 ], 'E' => [ 0, 1 ], 'S' => [ 1, 0 ], 'W' => [ 0, -1 ] );
 
   sub next_door {
-    my ($self, $curr, $char) = @_;
+    my ($self, $curr, $char, $pos) = @_;
 
+    if (@{ $curr->{ children } }) {
+      for my $child (@{ $curr->{ children } }) {
+        $self->next_door( $child, $char, $pos );
+       }
+      return;
+     }
+
+    $curr->{ pos } = $pos;
     $curr->{ str } .= $char;
     $self->{ map }{ "$curr->{ y },$curr->{ x }" }{ dirs } .= $char;
     $curr->{ count }++;
+ print "$char at $pos | $curr->{ count } | $curr->{ str }\n";
     $curr->{ y } += $dirs{ $char }->[0];
     $curr->{ x } += $dirs{ $char }->[1];
     if (!$self->{ map }{ "$curr->{ y },$curr->{ x }" }) {
       $self->{ map }{ "$curr->{ y },$curr->{ x }" } = { dirs => '', count => $curr->{ count } };
+#     print "$curr->{ y },$curr->{ x } is $curr->{ count } away\n";
      }
     else {
       if ($self->{ map }{ "$curr->{ y },$curr->{ x }" }{ count } > $curr->{ count }) {
         $self->{ map }{ "$curr->{ y },$curr->{ x }" }{ count } = $curr->{ count };
+#     print "$curr->{ y },$curr->{ x } is NOW $curr->{ count } away\n";
+       }
+      else {
+        # This count should actually be less!
+        $curr->{ count } = $self->{ map }{ "$curr->{ y },$curr->{ x }" }{ count };
+#     print "Updated $curr->{ y },$curr->{ x } is NOW $curr->{ count } away\n";
        }
      }
 
@@ -40,7 +57,7 @@ use Path::Tiny;
       $curr->{ pos }++;
       my $pos = $curr->{ pos };
     
-print "$char at $pos | $curr->{ count } | $curr->{ str }\n";
+#print "$char at $pos | $curr->{ count } | $curr->{ str }\n";
       if ($char eq '(') {
         push @{ $curr->{ children } }, Path->new( $curr );
         $curr = $curr->{ children }[0];
@@ -54,18 +71,10 @@ print "$char at $pos | $curr->{ count } | $curr->{ str }\n";
       elsif ($char eq ')') {
         $curr = $curr->{ parent };
         $curr->{ pos } = $pos;
+        print "...At root ($pos)\n" if (!$curr->{ parent });
        }
       else {
-        if (@{ $curr->{ children } }) {
-          for my $child (@{ $curr->{ children } }) {
-            $child->{ pos } = $pos;
-            $self->next_door( $child, $char );
-           }
-         }
-        else {
-          print "...At root ($pos)\n";
-          $self->next_door( $curr, $char );
-         }
+        $self->next_door( $curr, $char, $pos );
        }
      }
 
