@@ -6,6 +6,9 @@ use warnings;
 
 use Path::Tiny;
 
+my $part = $ARGV[0] || 0;
+my $debug = 1;
+
 { package Program;
 
   my $opcodes = {
@@ -86,10 +89,16 @@ use Path::Tiny;
   sub run {
     my ($self) = @_;
 
+    my $zero = -1;
+
     my $reg = $self->{ regs };
     while ((my $line = $reg->[ $self->{ inst } ]) < @{ $self->{ code } }) {
       $self->execute( $self->{ code }[$line] );
       $self->{ regs }[$self->{ inst }]++;
+      if ($self->{ regs }[0] != $zero) {
+print "[ ", join( ',', map { sprintf "%10d", $_ } @{ $self->{ regs } } ), " ]\n" if ($debug);
+$zero = $self->{ regs }[0];
+       }
      }
 
     return;
@@ -99,7 +108,7 @@ use Path::Tiny;
     my ($class, $input_file) = @_;
     my $self = {
       code => [],
-      regs => [ 0, 0, 0, 0, 0, 0 ],
+      regs => [ $part, 0, 0, 0, 0, 0 ],
       inst => 0,
     };
 
