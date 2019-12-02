@@ -6,6 +6,19 @@ use warnings;
 
 use Path::Tiny;
 
+#
+# Note: For part a at line 28, register 0 has to match register 3:
+#
+# 28 eqrr 3 0 4
+#
+# Using the debug print statements, I determined the output of register 3
+# the first time line 28 was reached.
+#
+my $part = defined( $ARGV[1] ) || 7216956;
+my $debug = 1;
+
+my %halt_vals;
+
 { package Program;
 
   my $opcodes = {
@@ -88,8 +101,21 @@ use Path::Tiny;
 
     my $reg = $self->{ regs };
     while ((my $line = $reg->[ $self->{ inst } ]) < @{ $self->{ code } }) {
-      print "$self->{ code }[$line]\n";
+      print "[ ", join( ',', map { sprintf "%10x", $_ } @{ $self->{ regs } } ), " ]\n" if ($debug == 1 && $line == 28);
+      print "[ ", join( ',', map { sprintf "%10x", $_ } @{ $self->{ regs } } ), " ]\n" if ($debug > 1);
+      if ($line == 28) {
+        my $halt = $self->{ regs }[3];
+        die "A match was found. Use the previous value of register 4.\n" if ($halt_vals{ $halt });                                                              
+        $halt_vals{ $halt } = 1;
+       }
+
       $self->execute( $self->{ code }[$line] );
+
+      # Short-circuit the loop!
+      if (1 && $line == 17) {
+        $self->{ regs }[4] = ($self->{ regs }[2] / 256) - 1;
+       }
+
       $self->{ regs }[$self->{ inst }]++;
      }
 
@@ -100,7 +126,7 @@ use Path::Tiny;
     my ($class, $input_file) = @_;
     my $self = {
       code => [],
-      regs => [ 100000000, 0, 0, 0, 0, 0 ],
+      regs => [ $part, 0, 0, 0, 0, 0 ],
       inst => 0,
     };
 
