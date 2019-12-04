@@ -79,7 +79,7 @@ use Path::Tiny;
 
     $self->{ move_list } = $next_moves;
 
-    return $self;
+    return !$self->{ reached };
    }
 
   sub next_move {
@@ -90,7 +90,9 @@ use Path::Tiny;
     # Can't do anything else if switching tools
     if ($move->{ switch }) {
       $move->{ switch }--;
-      die "The minimum moves to the target is ", $self->{ moves }, "\n" if ($move->{ x } == $self->{ targx } && $move->{ y } == $self->{ targy } && $move->{ tool } eq 'T' && $move->{ switch } == 0);
+      if ($move->{ x } == $self->{ targx } && $move->{ y } == $self->{ targy } && $move->{ tool } eq 'T' && $move->{ switch } == 0) {
+        $self->{ reached }++;
+       }
       return $move;
      }
 
@@ -115,8 +117,6 @@ use Path::Tiny;
   sub test_move {
     my ($self, $move) = @_;
 
-    die "The minimum moves to the target is ", $self->{ moves }, "\n" if ($move->{ x } == $self->{ targx } && $move->{ y } == $self->{ targy } && $move->{ tool } eq 'T' && $move->{ switch } == 0);
-
     my $hist_idx = "$move->{ x },$move->{ y },$move->{ tool }";
     return () if $self->{ history }{ $hist_idx };
 
@@ -126,7 +126,13 @@ use Path::Tiny;
     my $region = $self->erosion( $self->index( $move->{ x }, $move->{ y } ) ) % 3;
     return () if ($invalid[$region] eq $move->{ tool });
 
-    $self->{ history }{ $hist_idx } = 1;
+    # NOTE: It is possible to reach the same spot with a tool later but faster
+    # than getting there and then switching tools!
+    $self->{ history }{ $hist_idx } = 1 if ($move->{ switch } == 0);
+
+    if ($move->{ x } == $self->{ targx } && $move->{ y } == $self->{ targy } && $move->{ tool } eq 'T' && $move->{ switch } == 0) {
+      $self->{ reached }++;
+     }
 
     return ( $move );
    }
@@ -142,9 +148,11 @@ use Path::Tiny;
         moves => 0,
         move_list => [ { x => 0, y => 0, tool => 'T', switch => 0 } ],
         history => { "0,0,T" => 1 },
+        reached => 0,
 		};
     bless $self, $class;
 
+    $self->index( 10, 10 );
     $self->fill_grid();
 
     return $self;
