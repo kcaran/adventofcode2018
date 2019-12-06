@@ -9,18 +9,37 @@ use Path::Tiny;
 
 my ($immunity, $infection) = ( [], [] );
 
+my $debug = 0;
+
 { package Army;
+
+  sub attack {
+    my ($self) = @_;
+
+    return unless ($self->{ units } > 0);
+    return unless ($self->{ target });
+    return unless ($self->{ target }{ units } > 0);
+
+    my $damage = $self->damage_done( $self->{ target } );
+    my $kills = int( $damage / $self->{ target }{ hp } );
+
+    $self->{ target }{ units } -= $kills;
+
+    return;
+   }
 
   sub damage_done {
     my ($self, $e) = @_;
 
     my $damage = $self->power();
 
-    if ($e->{ traits } =~ /immune to([^;]+?)$self->{ type }/) {
-      print "Debug: Immune to $self->{ type }: $e->{ traits }\n";
-     }
-    if ($e->{ traits } =~ /weak to([^;]+?)$self->{ type }/) {
-      print "Debug: Weak to $self->{ type }: $e->{ traits }\n";
+    if ($debug) {
+      if ($e->{ traits } =~ /immune to([^;]+?)$self->{ type }/) {
+        print "Immune to $self->{ type }: $e->{ traits }\n";
+       }
+      if ($e->{ traits } =~ /weak to([^;]+?)$self->{ type }/) {
+        print "Weak to $self->{ type }: $e->{ traits }\n";
+       }
      }
 
     return 0 if ($e->{ traits } =~ /immune to([^;]+?)$self->{ type }/);
@@ -29,7 +48,7 @@ my ($immunity, $infection) = ( [], [] );
     return $damage;
    }
 
-  sub will_attack {
+  sub choose_attack {
     my ($self, $enemy) = @_;
 
     my $max = 0;
@@ -48,6 +67,7 @@ my ($immunity, $infection) = ( [], [] );
        }
      }
     $target->{ is_target } = $self if ($target);
+    $self->{ target } = $target;
 
     return; 
    }
@@ -65,7 +85,7 @@ my ($immunity, $infection) = ( [], [] );
     my $self = {
       units => $1,
       hp => $2,
-      traits => $3,
+      traits => $3 || '',
       attack => $4,
       type => $5,
       init => $6,
@@ -96,7 +116,7 @@ sub target_select {
   my ($group, $enemy) = @_;
 
   for my $unit (sort power_sort @{ $group }) {
-    $unit->will_attack( $enemy );
+    $unit->choose_attack( $enemy );
    }
 
   return;
@@ -125,7 +145,21 @@ while (@{ $immunity } && @{ $infection }) {
   init( @units );
   target_select( $immunity, $infection );
   target_select( $infection, $immunity );
-exit;
+  for my $attacker (sort { $b->{ init } <=> $a->{ init } } @units) {
+    $attacker->attack();
+   }
+
+  # Finally, clean up the wiped out units
+  $immunity = [ map { $_->{ units } > 0 ? $_ : () } @{ $immunity } ];
+  $infection = [ map { $_->{ units } > 0 ? $_ : () } @{ $infection } ];
  }
+
+# Only one army will have any units left
+my $num_units = 0;
+for my $army ( @{ $immunity }, @{ $infection } ) {
+  $num_units += $army->{ units };
+ }
+
+print "The number of units left is $num_units\n";
 
 exit;
