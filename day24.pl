@@ -1,5 +1,7 @@
 #!/usr/bin/perl
 #
+# Note: With a boost of 20, both sides are immune to the others' attacks!
+# No one wins!
 #
 use strict;
 use warnings;
@@ -16,16 +18,16 @@ my $debug = 0;
   sub attack {
     my ($self) = @_;
 
-    return unless ($self->{ units } > 0);
-    return unless ($self->{ target });
-    return unless ($self->{ target }{ units } > 0);
+    return 0 unless ($self->{ units } > 0);
+    return 0 unless ($self->{ target });
+    return 0 unless ($self->{ target }{ units } > 0);
 
     my $damage = $self->damage_done( $self->{ target } );
     my $kills = int( $damage / $self->{ target }{ hp } );
 
     $self->{ target }{ units } -= $kills;
 
-    return;
+    return $kills;
    }
 
   sub damage_done {
@@ -78,6 +80,15 @@ my $debug = 0;
     return $self->{ units } * $self->{ attack };
    }
 
+  # The easiest way to create a clone of this army is to create a new one
+  # from the original input
+  sub clone {
+    my ($self, $boost) = @_;
+    my $clone = Army->new( $self->{ input } );
+    $clone->{ attack } += $boost if ($boost);
+    return $clone;
+   }
+
   sub new {
     my ($class, $input) = @_;
 
@@ -91,6 +102,7 @@ my $debug = 0;
       init => $6,
       is_target => '',
       target => '',
+      input => $input,
     };
 
     bless $self, $class;
@@ -122,6 +134,42 @@ sub target_select {
   return;
  }
 
+sub battle {
+  my ($immunity, $infection, $boost) = @_;
+
+  # Make copies of the original armies before battling
+  my @imm = map { $_->clone( $boost ) } @{ $immunity };
+  my @inf = map { $_->clone() } @{ $infection };
+
+  # Battle
+  while (@imm && @inf) {
+    my @units = ( @imm, @inf );
+    init( @units );
+    target_select( \@imm, \@inf );
+    target_select( \@inf, \@imm );
+    my $damage = 0;
+    for my $attacker (sort { $b->{ init } <=> $a->{ init } } @units) {
+      $damage += $attacker->attack();
+     }
+
+    # Finally, clean up the wiped out units
+    @imm = map { $_->{ units } > 0 ? $_ : () } @imm;
+    @inf = map { $_->{ units } > 0 ? $_ : () } @inf;
+
+    # Make sure battle hasn't come to a standstill
+    return -1 if (!$damage);
+   }
+
+  # Only one army will have any units left
+  my $num_units = 0;
+  for my $army ( @imm, @inf ) {
+    $num_units += $army->{ units };
+   }
+  my $immunity_wins = @imm ? 1 : 0;
+
+  return ($immunity_wins, $num_units);
+ }
+
 my $input_file = $ARGV[0] || 'input24.txt';
 
 # Initialization
@@ -136,30 +184,24 @@ for my $line ( Path::Tiny::path( $input_file )->lines_utf8( { chomp => 1 } )) {
     $group = $infection;
     next;
    }
-  push @{ $group }, Army->new( $line, $group );
+  push @{ $group }, Army->new( $line );
  }
 
 # Battle
-while (@{ $immunity } && @{ $infection }) {
-  my @units = ( @{ $immunity }, @{ $infection } );
-  init( @units );
-  target_select( $immunity, $infection );
-  target_select( $infection, $immunity );
-  for my $attacker (sort { $b->{ init } <=> $a->{ init } } @units) {
-    $attacker->attack();
+my $boost = 0;
+my $immunity_wins = 0;
+my $num_units;
+
+while ($immunity_wins <= 0) {
+  ($immunity_wins, $num_units) = battle( $immunity, $infection, $boost );
+  if ($immunity_wins < 0) {
+    print "No winner with a boost of $boost.\n";
    }
-
-  # Finally, clean up the wiped out units
-  $immunity = [ map { $_->{ units } > 0 ? $_ : () } @{ $immunity } ];
-  $infection = [ map { $_->{ units } > 0 ? $_ : () } @{ $infection } ];
+  else {
+    my $winner = ($immunity_wins ? 'Immunity' : 'Infection');
+    print "$winner wins with a boost of $boost. The number of units left is $num_units\n";
+   }
+  $boost++;
  }
-
-# Only one army will have any units left
-my $num_units = 0;
-for my $army ( @{ $immunity }, @{ $infection } ) {
-  $num_units += $army->{ units };
- }
-
-print "The number of units left is $num_units\n";
 
 exit;
