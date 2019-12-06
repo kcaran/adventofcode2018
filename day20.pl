@@ -6,6 +6,10 @@
 # I had to rely on this hint:
 # https://www.reddit.com/r/adventofcode/comments/a8a704/solution_for_day_20_part_1/ecv67tz
 #
+# 2019: I realized that I have to do this in two parts: First build out the
+# map and *then* find the paths to the rooms. Yes, that's what the instructions
+# say but I thought I could combine the steps.
+#
 use strict;
 use warnings;
 
@@ -14,6 +18,7 @@ use Path::Tiny;
 { package Map;
 
   my %dirs = ( 'N' => [ -1, 0 ], 'E' => [ 0, 1 ], 'S' => [ 1, 0 ], 'W' => [ 0, -1 ] );
+  my %opp = ( 'N' => 'S', 'E' => 'W', 'S' => 'N', 'W' => 'E' );
 
   sub next_door {
     my ($self, $curr, $char, $pos) = @_;
@@ -27,31 +32,26 @@ use Path::Tiny;
 
     $curr->{ pos } = $pos;
     $curr->{ str } .= $char;
-    $self->{ map }{ "$curr->{ y },$curr->{ x }" }{ dirs } .= $char;
-    $curr->{ count }++;
- print "$char at $pos | $curr->{ count }\n";
+
+    # Note the door in the current room
+    unless ($self->{ map }{ "$curr->{ y },$curr->{ x }" }{ dirs } =~ /$char/) {
+      $self->{ map }{ "$curr->{ y },$curr->{ x }" }{ dirs } .= $char;
+     }
     $curr->{ y } += $dirs{ $char }->[0];
     $curr->{ x } += $dirs{ $char }->[1];
     if (!$self->{ map }{ "$curr->{ y },$curr->{ x }" }) {
-      $self->{ map }{ "$curr->{ y },$curr->{ x }" } = { dirs => '', count => $curr->{ count } };
-#     print "$curr->{ y },$curr->{ x } is $curr->{ count } away\n";
+      $self->{ map }{ "$curr->{ y },$curr->{ x }" } = { dirs => '', count => 0 };
      }
-    else {
-      if ($self->{ map }{ "$curr->{ y },$curr->{ x }" }{ count } > $curr->{ count }) {
-        $self->{ map }{ "$curr->{ y },$curr->{ x }" }{ count } = $curr->{ count };
-#     print "$curr->{ y },$curr->{ x } is NOW $curr->{ count } away\n";
-       }
-      else {
-        # This count should actually be less!
-        $curr->{ count } = $self->{ map }{ "$curr->{ y },$curr->{ x }" }{ count };
-#     print "Updated $curr->{ y },$curr->{ x } is NOW $curr->{ count } away\n";
-       }
+
+    # Note the door in the new room
+    unless ($self->{ map }{ "$curr->{ y },$curr->{ x }" }{ dirs } =~ /$opp{ $char }/) {
+      $self->{ map }{ "$curr->{ y },$curr->{ x }" }{ dirs } .= $opp{ $char };
      }
 
     return;
    }
 
-  sub traverse {
+  sub parse {
     my ($self, $curr) = @_;
 
     while ($curr->{ pos } < @{ $self->{ path } }) {
@@ -60,7 +60,6 @@ use Path::Tiny;
       $curr->{ pos }++;
       my $pos = $curr->{ pos };
     
-#print "$char at $pos | $curr->{ count } | $curr->{ str }\n";
       if ($char eq '(') {
         push @{ $curr->{ children } }, Path->new( $curr );
         $curr = $curr->{ children }[0];
@@ -84,6 +83,39 @@ use Path::Tiny;
     return;
    }
 
+  sub next_rooms {
+    my ($self, $index, $count) = @_;
+
+    my @next_rooms = ();
+    my $room = $self->{ map }{ $index };
+    my ($x, $y) = split ',', $index;
+    for my $dir (split '', $room->{ dirs }) {
+      my $next_x = $x + $dirs{ $dir }->[0];
+      my $next_y = $y + $dirs{ $dir }->[1];
+      my $next_room = "$next_x,$next_y";
+      next if ($self->{ map }{ $next_room }{ count });
+      $self->{ map }{ $next_room }{ count } = $count;
+      push @next_rooms, $next_room;
+     }
+
+    return @next_rooms;
+   }
+
+  sub traverse {
+    my ($self) = @_;
+
+    my $rooms = [ "0,0" ];
+    my $count = 0;
+    while (@{ $rooms }) {
+      my $next_rooms = [];
+      $count++;
+      for my $r (@{ $rooms }) {
+        push @{ $next_rooms }, $self->next_rooms( $r, $count );
+       }
+      $rooms = $next_rooms;
+     }
+   }
+
   sub new {
     my ($class, $input_file) = @_;
     my $self = {
@@ -101,7 +133,7 @@ use Path::Tiny;
     my $curr = $self->{ regex };
     $self->{ map }{ "0,0" } = { dirs => '', count => 0 };
 
-    $self->traverse( $curr );
+    $self->parse( $curr );
 
     return $self;
    }
@@ -119,14 +151,12 @@ use Path::Tiny;
       children => [],
       y => 0,
       x => 0,
-      count => 0,
       pos => 0,
      };
 
     if ($parent) {
       $self->{ y } = $parent->{ y };
       $self->{ x } = $parent->{ x };
-      $self->{ count } = $parent->{ count };
       $self->{ pos } = $parent->{ pos };
       $self->{ str } = $parent->{ str };
      }
@@ -139,6 +169,8 @@ use Path::Tiny;
 my $input_file = $ARGV[0] || 'input20.txt';
 
 my $map = Map->new( $input_file );
+
+$map->traverse();
 
 my $max = 0;
 for my $room (keys %{ $map->{ map } }) {
