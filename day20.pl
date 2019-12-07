@@ -51,6 +51,13 @@ use Path::Tiny;
     return;
    }
 
+#
+# "Now, only SSE(EE|N) remains. Because it is in the same parenthesized
+# group as NEEE, it starts from the same room NEEE started in."
+#
+# There only needs to be a single set of children for each () - The
+# branches aren't recursive!!
+#
   sub parse {
     my ($self, $curr) = @_;
 
@@ -72,8 +79,8 @@ use Path::Tiny;
        }
       elsif ($char eq ')') {
         $curr = $curr->{ parent };
+        $curr->{ children } = [];
         $curr->{ pos } = $pos;
-        print "...At root ($pos)\n" if (!$curr->{ parent });
        }
       else {
         $self->next_door( $curr, $char, $pos );
@@ -88,12 +95,12 @@ use Path::Tiny;
 
     my @next_rooms = ();
     my $room = $self->{ map }{ $index };
-    my ($x, $y) = split ',', $index;
+    my ($y, $x) = split ',', $index;
     for my $dir (split '', $room->{ dirs }) {
-      my $next_x = $x + $dirs{ $dir }->[0];
-      my $next_y = $y + $dirs{ $dir }->[1];
-      my $next_room = "$next_x,$next_y";
-      next if ($self->{ map }{ $next_room }{ count });
+      my $next_y = $y + $dirs{ $dir }->[0];
+      my $next_x = $x + $dirs{ $dir }->[1];
+      my $next_room = "$next_y,$next_x";
+      next if ($self->{ map }{ $next_room }{ count } || $next_room eq '0,0');
       $self->{ map }{ $next_room }{ count } = $count;
       push @next_rooms, $next_room;
      }
@@ -178,4 +185,12 @@ for my $room (keys %{ $map->{ map } }) {
  }
 
 print "The farthest room is $max doors away\n";
+
+my $far_away = 0;
+for my $room (keys %{ $map->{ map } }) {
+  $far_away++ if ($map->{ map }{ $room }{ count } >= 1000);
+ }
+
+print "There are $far_away far away rooms\n";
+
 exit;
