@@ -1,13 +1,5 @@
 #!/usr/bin/perl
 #
-# This was the hardest puzzle yet because of all of the specifications. I
-# resorted to looking at reddit and found several (python) solutions that
-# did not work with my input!
-#
-# I finally found one that did work and was able to detect my last error.
-# I should have been looking not for the path to the enemy, but the path
-# to the spot that put in enemy in *range*.
-#
 use strict;
 use warnings;
 
